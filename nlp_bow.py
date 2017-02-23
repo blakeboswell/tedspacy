@@ -1,14 +1,18 @@
 import json
+import gzip
 from collections import Counter
 from spacy.en import English
 import scipy.sparse as sp
+from scipy.io import mmwrite
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 
 def transcript_stream(filename):
     ''' stream over lines in jsonl file '''
-    for i, jsonl in enumerate(open(filename)):
-        yield (i, json.loads(jsonl)['transcript'])
+    for i, jsonl in enumerate(gzip.open(filename)):
+        line = jsonl.decode('utf-8')
+        yield (i, json.loads(line)['transcript'])
 
 
 TEDSTOPS = set(['applause', 'cheers', 'laughter'])
@@ -66,11 +70,13 @@ def doc_term_matrix(docs, nlp):
 
 if __name__ == '__main__':
 
-    TALKPATH = '../data/tedtalk.jl'
+    TALKPATH = 'data/tedtalk.jl.gz'
     nlp = English()
 
-    vocab = build_vocabulary(transcript_stream(TALKPATH), nlp)
-    print(vocab.most_common(10))
+    # vocab = build_vocabulary(transcript_stream(TALKPATH), nlp)
+    # print(vocab.most_common(10))
 
     tfidf = tfidf_weight(doc_term_matrix(transcript_stream(TALKPATH), nlp))
-    print(tfidf.shape)
+    d = cosine_similarity(tfidf, tfidf)
+    mmwrite('data/tedsim.mtx', d)
+    print(d.shape)
